@@ -10,9 +10,8 @@ st.set_page_config(page_title="HALO+ 企业诊断系统", layout="wide")
 st.title("🏆 HALO+ 企业诊断系统")
 st.markdown("输入企业名称（支持模糊查询），查看该企业的 HALO+ 总分及各维度得分")
 
-# 数据路径（请根据实际路径修改）
-BASE_DIR = r"D:\Finance\results"
-total_file = os.path.join(BASE_DIR, "HALO_total_score.csv")
+# 直接读取同一文件夹下的数据文件
+total_file = "HALO_total_score.csv"
 
 @st.cache_data
 def load_data():
