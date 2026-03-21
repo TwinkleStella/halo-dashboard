@@ -212,7 +212,8 @@ with tab2:
             matched_batch = avg_scores_db[avg_scores_db['name'].str.contains(pattern, case=False, na=False)]
             
             if matched_batch.empty:
-                st.error("没有在系统库中匹配到您提供的任何客户。")
+                 st.error("没有在系统库中匹配到您提供的任何客户。")
+
             else:
                 # 4. 筛选出超过用户设定阈值的企业
                 high_scorers = matched_batch[matched_batch['HALO_score'] >= score_threshold].sort_values(by='HALO_score', ascending=False)
