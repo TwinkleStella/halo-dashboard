@@ -230,16 +230,67 @@ with tab2:
                 st.download_button("📥 导出高分匹配结果 (CSV)", data=csv_batch, file_name=f"高分客户名单筛查结果_{score_threshold}分以上.csv", mime="text/csv")
 
 
-# ----------------- 路径三：行业 Top 排行榜（移至独立标签） -----------------
+# ----------------- 路径三：HALO+ 高分企业优选池（多维严选模型） -----------------
 with tab3:
-    st.markdown("#### 查看全库企业平均综合得分排行榜")
-    top_x = st.number_input("🥇 请输入想要查看的 Top 企业数量：", min_value=1, max_value=500, value=15, step=1)
+    st.markdown("#### 🏆 HALO+ 高分企业智能优选池")
+    st.markdown("基于多维严选模型，为您自动过滤掉存在单项短板或近期业绩下滑的标的，筛选出真正的优质企业。")
     
-    avg_scores_rank = df_all.groupby(['code', 'name'])[['HA', 'LO', 'I', 'E', 'HALO_score']].mean().reset_index()
-    top_companies = avg_scores_rank.sort_values(by='HALO_score', ascending=False).head(top_x)
-    top_companies_display = top_companies.round(2)
+    # 将严选准则做成可交互的控制面板（默认值设为你截图里的标准）
+    with st.expander("⚙️ 展开查看或动态调整筛选阈值", expanded=True):
+        col_p1, col_p2, col_p3 = st.columns(3)
+        with col_p1:
+            st.markdown("**1. 综合优异 (HALO总分)**")
+            halo_avg_min = st.number_input("总分近三年均值 >", value=60.0, step=1.0)
+            halo_2023_min = st.number_input("总分2023年单年 >", value=60.0, step=1.0)
+        with col_p2:
+            st.markdown("**2. 无明显短板 (四个子项)**")
+            sub_avg_min = st.number_input("各子项近三年均值 >", value=50.0, step=1.0)
+            sub_2023_min = st.number_input("各子项2023年单年 >", value=50.0, step=1.0)
+        with col_p3:
+            st.markdown("**3. E项相对突出**")
+            e_avg_min = st.number_input("E项近三年均值 >", value=60.0, step=1.0)
+            e_2023_min = st.number_input("E项2023年单年 >", value=60.0, step=1.0)
+
+    # --- 数据处理与量化筛选引擎 ---
+    # 1. 计算近三年均值
+    df_avg = df_all.groupby(['code', 'name'])[['HA', 'LO', 'I', 'E', 'HALO_score']].mean().reset_index()
     
-    st.dataframe(top_companies_display.style.format({'HA': '{:.2f}', 'LO': '{:.2f}', 'I': '{:.2f}', 'E': '{:.2f}', 'HALO_score': '{:.2f}'}), use_container_width=True)
+    # 2. 提取 2023 年单年数据 (安全提取，防止 year 列格式差异)
+    df_2023 = df_all[df_all['year'].astype(str).str.contains('2023')][['code', 'HA', 'LO', 'I', 'E', 'HALO_score']]
+    # 为了合并时列名不冲突，给 2023 年的数据加上后缀
+    df_2023.columns = ['code', 'HA_23', 'LO_23', 'I_23', 'E_23', 'HALO_23']
     
-    csv_rank = top_companies_display.to_csv(index=False).encode('utf-8-sig')
-    st.download_button(label=f"📥 导出 Top {top_x} 企业榜单 (CSV)", data=csv_rank, file_name=f"HALO_Top_{top_x}_排行榜.csv", mime="text/csv")
+    # 3. 将均值和 2023 年数据合并到一张大表上
+    df_pool = pd.merge(df_avg, df_2023, on='code', how='inner')
+    
+    # 4. 执行严选逻辑：根据上方面板设定的阈值进行布尔筛选
+    cond1 = (df_pool['HALO_score'] > halo_avg_min) & (df_pool['HALO_23'] > halo_2023_min)
+    cond2 = (df_pool['HA'] > sub_avg_min) & (df_pool['LO'] > sub_avg_min) & (df_pool['I'] > sub_avg_min) & (df_pool['E'] > sub_avg_min) & \
+            (df_pool['HA_23'] > sub_2023_min) & (df_pool['LO_23'] > sub_2023_min) & (df_pool['I_23'] > sub_2023_min) & (df_pool['E_23'] > sub_2023_min)
+    cond3 = (df_pool['E'] > e_avg_min) & (df_pool['E_23'] > e_2023_min)
+    
+    # 获取最终过关的企业名单，并按总分均值排序
+    final_pool = df_pool[cond1 & cond2 & cond3].sort_values(by='HALO_score', ascending=False)
+    
+    # --- 结果展示与下载 ---
+    if final_pool.empty:
+        st.warning("⚠️ 在当前严格的筛选标准下，全市场暂无符合条件的企业。您可以尝试在上方放宽条件。")
+    else:
+        st.success(f"🎉 严选完成！经过层层过滤，全市场共筛选出 **{len(final_pool)}** 家完美的【HALO+ 高分优质企业】。")
+        
+        # 整理展示用的表格，提取核心关键指标并汉化列名
+        display_df = final_pool[['code', 'name', 'HALO_score', 'HALO_23', 'E', 'E_23', 'HA', 'LO', 'I']].copy()
+        display_df.columns = ['企业代码', '企业名称', 'HALO总分(均值)', 'HALO总分(23年)', 'E项(均值)', 'E项(23年)', 'HA(均值)', 'LO(均值)', 'I(均值)']
+        display_df = display_df.round(2)
+        
+        # 渲染出漂亮的高亮表格
+        st.dataframe(display_df, use_container_width=True)
+        
+        # 批量下载按钮
+        csv_pool = display_df.to_csv(index=False).encode('utf-8-sig')
+        st.download_button(
+            label=f"📥 一键下载优选池企业名单 ({len(final_pool)}家)",
+            data=csv_pool,
+            file_name="HALO系统_严选高分企业池.csv",
+            mime="text/csv"
+        )
