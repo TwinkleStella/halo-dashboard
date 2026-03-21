@@ -39,6 +39,45 @@ df_all = load_data()
 
 if df_all.empty:
     st.stop()
+    
+# ================== 🌟 新增：精准匹配申万行业并计算排名 ==================
+@st.cache_data
+def load_and_calculate_ranks(df_main):
+    # 1. 计算所有企业历年 HALO+ 总分的平均值，作为排名的基准
+    avg_scores = df_main.groupby(['code', 'name'])[['HA', 'LO', 'I', 'E', 'HALO_score']].mean().reset_index()
+    
+    # 2. 读取你专门清洗好的行业分类文件
+    industry_file = "申万行业分类_cleaned.csv"
+    if os.path.exists(industry_file):
+        # 强制把 code 读为字符串
+        df_industry = pd.read_csv(industry_file, dtype={'code': str})
+        
+        # 【关键修复】把类似 "1" 的代码补齐为 "000001"，防止和主表匹配不上！
+        df_industry['code'] = df_industry['code'].str.zfill(6)
+        
+        # 因为有连续几年的数据，同一个企业我们只取一行行业标签即可
+        df_ind_unique = df_industry[['code', 'industry']].drop_duplicates(subset=['code'])
+        
+        # 将行业信息完美合并进平均分表里
+        avg_scores = pd.merge(avg_scores, df_ind_unique, on='code', how='left')
+        avg_scores['industry'] = avg_scores['industry'].fillna('未分类')
+    else:
+        avg_scores['industry'] = '未分类'
+
+    # 3. 计算全市场总排名
+    avg_scores['global_rank'] = avg_scores['HALO_score'].rank(method='min', ascending=False).astype(int)
+    
+    # 4. 计算各行业内部的排名
+    avg_scores['industry_rank'] = avg_scores.groupby('industry')['HALO_score'].rank(method='min', ascending=False).astype(int)
+    
+    # 5. 统计各类别的总企业数
+    total_companies = len(avg_scores)
+    industry_counts = avg_scores['industry'].value_counts().to_dict()
+    
+    return avg_scores, total_companies, industry_counts
+
+# 运行计算引擎
+df_ranks, total_companies, industry_counts = load_and_calculate_ranks(df_all)
 
 # ================== 核心交互界面：三合一分流标签页 ==================
 
@@ -63,6 +102,37 @@ with tab1:
 
             df_company = matched[matched['code'] == selected_code].sort_values('year')
             
+            # --- 🌟 新增：展示企业排名仪表盘 ---
+            company_rank_info = df_ranks[df_ranks['code'] == selected_code]
+            if not company_rank_info.empty:
+                r_info = company_rank_info.iloc[0]
+                ind_name = r_info['industry']
+                ind_total = industry_counts.get(ind_name, 1) # 该行业的总企业数
+                
+                # 画三个并排的漂亮指标卡片
+                st.markdown("### 🏅 综合排名与行业地位 (基于历年均值)")
+                col_m1, col_m2, col_m3 = st.columns(3)
+                
+                col_m1.metric(label="📌 平均综合得分", value=f"{r_info['HALO_score']:.2f} 分")
+                
+                col_m2.metric(
+                    label="🏆 全市场总排名", 
+                    value=f"第 {r_info['global_rank']} 名", 
+                    delta=f"打败了 {(1 - r_info['global_rank']/total_companies)*100:.1f}% 的企业",
+                    delta_color="normal"
+                )
+                
+                if ind_name == '未分类':
+                    col_m3.metric(label="🏢 行业内排名", value="暂无分类数据", delta="缺少匹配信息", delta_color="off")
+                else:
+                    col_m3.metric(
+                        label=f"🏢 申万行业({ind_name}) 排名", 
+                        value=f"第 {r_info['industry_rank']} 名", 
+                        delta=f"该细分行业共 {ind_total} 家企业", 
+                        delta_color="off"
+                    )
+                st.markdown("---")
+                
             # --- 渲染折线图 ---
             st.subheader(f"📈 {selected_name} ({selected_code}) 历年 HALO+ 总分趋势")
             chart_data = df_company.copy()
