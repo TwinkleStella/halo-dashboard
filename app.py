@@ -64,11 +64,11 @@ def load_and_calculate_ranks(df_main):
     else:
         avg_scores['industry'] = '未分类'
 
-    # 3. 计算全市场总排名
-    avg_scores['global_rank'] = avg_scores['HALO_score'].rank(method='min', ascending=False).astype(int)
+    # 3. 计算全市场总排名（加入 fillna(0) 防止空值报错）
+    avg_scores['global_rank'] = avg_scores['HALO_score'].rank(method='min', ascending=False).fillna(0).astype(int)
     
-    # 4. 计算各行业内部的排名
-    avg_scores['industry_rank'] = avg_scores.groupby('industry')['HALO_score'].rank(method='min', ascending=False).astype(int)
+    # 4. 计算各行业内部的排名（加入 fillna(0) 防止空值报错）
+    avg_scores['industry_rank'] = avg_scores.groupby('industry')['HALO_score'].rank(method='min', ascending=False).fillna(0).astype(int)
     
     # 5. 统计各类别的总企业数
     total_companies = len(avg_scores)
