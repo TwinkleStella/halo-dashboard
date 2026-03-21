@@ -33,6 +33,8 @@ def load_data():
         'I_score': 'I',
         'E_score': 'E'
     }, inplace=True)
+    # 【自动清洗补丁】：强制把主表的 code 变成 6 位数文本
+    df['code'] = df['code'].astype(str).str.zfill(6)
     return df
 
 df_all = load_data()
