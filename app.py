@@ -42,12 +42,14 @@ df_all = load_data()
 if df_all.empty:
     st.stop()
     
-# ================== 🌟 新增：精准匹配申万行业并计算排名 ==================
+# ================== 🌟 新增：精准匹配申万行业并计算排名（终极防崩溃版） ==================
 @st.cache_data
 def load_and_calculate_ranks(df_main):
     avg_scores = df_main.groupby(['code', 'name'])[['HA', 'LO', 'I', 'E', 'HALO_score']].mean().reset_index()
     
-    # 【新增】申万一级行业映射字典（2021版标准库）
+    # 【防弹机制1】上来先给所有企业一个默认行业，哪怕后面全部失败，这一列也永远存在！
+    avg_scores['industry'] = '未分类'
+    
     shenwan_dict = {
         'S11': '农林牧渔', 'S21': '煤炭', 'S22': '基础化工', 'S23': '钢铁', 'S24': '有色金属',
         'S27': '电子', 'S28': '汽车', 'S33': '家用电器', 'S34': '食品饮料', 'S35': '纺织服饰',
@@ -58,27 +60,32 @@ def load_and_calculate_ranks(df_main):
     }
     
     industry_file = "申万行业分类_cleaned.csv"
-    if os.path.exists(industry_file):
+    
+    # 【防弹机制2】用 try-except 替代 if，哪怕文件损坏或没传，也不会红底报错
+    try:
         df_industry = pd.read_csv(industry_file, dtype={'code': str})
         df_industry['code'] = df_industry['code'].str.zfill(6)
         
-        # 【新增】翻译中文行业，并拼接成 "S43 - 房地产" 的格式
+        # 翻译中文行业，并拼接成 "S43 - 房地产"
         df_industry['ind_cn'] = df_industry['industry'].map(shenwan_dict).fillna('未知细分')
         df_industry['industry_display'] = df_industry['industry'] + ' - ' + df_industry['ind_cn']
         
         df_ind_unique = df_industry[['code', 'industry_display']].drop_duplicates(subset=['code'])
+        
+        # 合并前先删掉刚才占位的 industry，换成带有真实数据的
+        avg_scores = avg_scores.drop(columns=['industry'])
         avg_scores = pd.merge(avg_scores, df_ind_unique, on='code', how='left')
         
-        # 统一把合并后的漂亮名字叫作 'industry'
         avg_scores.rename(columns={'industry_display': 'industry'}, inplace=True)
         avg_scores['industry'] = avg_scores['industry'].fillna('未分类')
-    else:
-        avg_scores['industry'] = '未分类'
+    except Exception as e:
+        # 如果文件没找到，只在网页上发个黄色警告，绝不崩溃
+        st.warning("⚠️ 行业分类文件(申万行业分类_cleaned.csv)读取失败，请检查是否已上传至 GitHub。所有企业将暂记为'未分类'。")
 
     # 强制将分数转为数字格式
     avg_scores['HALO_score'] = pd.to_numeric(avg_scores['HALO_score'], errors='coerce')
     
-    # 【修复 0 名次 Bug】遇到空值填入 999999，让它们沉到底部！
+    # 计算排名（包含 999999 垫底补丁）
     avg_scores['global_rank'] = avg_scores['HALO_score'].rank(method='min', ascending=False).fillna(999999).astype(int)
     avg_scores['industry_rank'] = avg_scores.groupby('industry')['HALO_score'].rank(method='min', ascending=False).fillna(999999).astype(int)
     
