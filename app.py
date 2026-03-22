@@ -100,7 +100,7 @@ df_ranks, total_companies, industry_counts = load_and_calculate_ranks(df_all)
 # ================== 核心交互界面：三合一分流标签页 ==================
 
 # 创建三个顶级标签页
-tab1, tab2, tab3 = st.tabs(["🔍 单家企业诊断", "📂 批量客户筛查", "🏆 排行榜智能查询"])
+tab1, tab2, tab3, tab4 = st.tabs(["🔍 单家企业诊断", "📂 批量客户筛查", "🏆 排行榜智能查询", "💻 在线计算 HALO+得分"])
 
 # ----------------- 路径一：单家企业诊断（你原本的功能） -----------------
 with tab1:
@@ -192,7 +192,7 @@ with tab1:
 
 # ----------------- 路径二：批量客户名单筛查（新增功能） -----------------
 with tab2:
-    st.markdown("#### 批量检测您的客户名单中是否包含高得分企业")
+    st.markdown("上传企业名单，批量导出得分明细，快速筛选潜在合作伙伴或投资标的")
     
     # 左侧输入，右侧设置阈值
     col_input, col_setting = st.columns([2, 1])
@@ -311,3 +311,152 @@ with tab3:
             
             csv_ind = display_ind.round(2).to_csv(index=True).encode('utf-8-sig')
             st.download_button(label=f"📥 导出 {selected_industry.split(' - ')[0]}行业 Top {top_percent_ind}% 榜单", data=csv_ind, file_name=f"HALO行业排名_{selected_industry}.csv", mime="text/csv", key="btn_ind")
+
+# ----------------- 路径四：批量上传企业数据并计算得分 -----------------
+with tab4:
+    st.markdown("#### 💻 本地数据在线计算引擎")
+    st.markdown("上传您的企业财务数据表，系统将调用内置算法，自动计算 HALO+ 各维度得分及总分。您的数据仅在本地浏览器运算，**绝不会上传至云端泄露**。")
+    
+    with st.expander("📖 点击查看模板必填字段与中文对照表", expanded=False):
+        st.markdown("""
+        | 英文列名 | 中文含义 | 英文列名 | 中文含义 |
+        | :--- | :--- | :--- | :--- |
+        | **code** | 企业代码 (必填) | **depreciation** | 折旧与摊销 |
+        | **name** | 企业名称 (必填) | **rd_expense** | 研发费用 |
+        | **year** | 数据年份 (必填) | **cost_of_sales** | 营业成本 |
+        | **revenue** | 营业收入 | **employee_count**| 员工总数 |
+        | **fixed_assets** | 固定资产净值 | **software_assets**| 软件类无形资产 |
+        | **total_assets** | 总资产 | **fixed_assets_original**| 固定资产原值 |
+        | **cash** | 货币资金 | **nwc** | 净营运资本 |
+        | **intangible_assets**| 无形资产 | **esg_rating** | ESG评级(选填，默认BB) |
+        | **capex** | 资本支出 | **esg_controversy_score**| ESG争议(选填，默认100)|
+        | **operating_profit** | 营业利润 | **patent_weighted_raw**| 专利加权分(选填，默认0)|
+        """)
+
+    uploaded_file = st.file_uploader("📥 请选择数据文件 (支持 .xlsx 或 .csv 格式)", type=['xlsx', 'csv'])
+
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith('.csv'):
+                df_new = pd.read_csv(uploaded_file)
+            else:
+                df_new = pd.read_excel(uploaded_file)
+                
+            st.success("文件读取成功！数据预览：")
+            st.dataframe(df_new.head(), use_container_width=True)
+
+            # 检查必要列是否存在
+            template_cols = ["code", "name", "year", "revenue", "fixed_assets", "total_assets", "cash", "intangible_assets", "capex", "operating_profit", "depreciation", "rd_expense", "cost_of_sales", "employee_count", "software_assets", "fixed_assets_original", "nwc"]
+            missing_cols = [c for c in template_cols if c not in df_new.columns]
+            if missing_cols:
+                st.error(f"❌ 您的文件中缺少以下必要字段，请检查后重新上传：\n{missing_cols}")
+                st.stop()
+
+            with st.spinner("系统正在进行量化指标运算..."):
+                # 1. 强力数据清洗：防止分母为 0 导致无限大 (inf) 崩溃系统
+                # 将所有 0 替换为极小值（防止除0），或者在计算后处理 inf
+                df_new = df_new.fillna(0) # 基础空值填 0
+
+                # 2. 尝试加载模型参数，如果没有 json 文件，就用当批上传数据的最大最小值
+                import os, json
+                params = {}
+                if os.path.exists("halo_params.json"):
+                    with open("halo_params.json", "r") as f:
+                        params = json.load(f)
+                else:
+                    st.info("提示：未检测到极值参数文件，系统将基于本次上传数据的最大/最小值进行动态标准化。")
+
+                def min_max_norm(series, col):
+                    if col in params:
+                        min_val, max_val = params[col]
+                    else:
+                        min_val, max_val = series.min(), series.max()
+                    
+                    if max_val == min_val or pd.isna(max_val):
+                        return series * 0
+                    return (series - min_val) / (max_val - min_val)
+
+                # 3. 计算各维度指标 (加入 numpy 的安全除法机制)
+                # 使用 np.where 防止分母为0
+                df_new['HA_fa_intensity'] = np.where(df_new['revenue'] == 0, 0, df_new['fixed_assets'] / df_new['revenue'])
+                df_new['HA_fa_ratio'] = np.where(df_new['total_assets'] == 0, 0, df_new['fixed_assets'] / df_new['total_assets'])
+                df_new['HA_tangible_intensity'] = np.where(df_new['revenue'] == 0, 0, (df_new['total_assets'] - df_new['cash'] - df_new['intangible_assets']) / df_new['revenue'])
+                df_new['HA_capex_intensity'] = np.where(df_new['revenue'] == 0, 0, df_new['capex'] / df_new['revenue'])
+                
+                op_dep = df_new['operating_profit'] + df_new['depreciation']
+                df_new['HA_capex_load'] = np.where(op_dep == 0, 0, df_new['capex'] / op_dep)
+                
+                df_new['HA_fa_newness'] = np.where(df_new['fixed_assets_original'] == 0, 0, df_new['fixed_assets'] / df_new['fixed_assets_original'])
+                df_new['HA_fa_turnover'] = np.where(df_new['fixed_assets'] == 0, 0, df_new['revenue'] / df_new['fixed_assets'])
+
+                # I 指标
+                df_new['I_asset_labor_ratio'] = np.where(df_new['employee_count'] == 0, 0, (df_new['total_assets'] - df_new['cash'] - df_new['intangible_assets']) / df_new['employee_count'])
+                df_new = df_new.sort_values(['code','year'])
+                # 如果只有一年数据，pct_change会变成 NaN，这里填0保障运算不中断
+                df_new['I_fa_update_rate'] = df_new.groupby('code')['fixed_assets_original'].pct_change().fillna(0)
+                df_new['I_software_ratio'] = np.where(df_new['total_assets'] == 0, 0, df_new['software_assets'] / df_new['total_assets'])
+                
+                df_new['revenue_per_emp'] = np.where(df_new['employee_count'] == 0, 0, df_new['revenue'] / df_new['employee_count'])
+                # 修改 periods 为 1，因为很多用户可能只传 2-3 年数据，要求 3 年跨度太苛刻了
+                df_new['I_rev_per_emp_growth'] = df_new.groupby('code')['revenue_per_emp'].pct_change(periods=1).fillna(0)
+
+                # LO 指标
+                df_new['rd_intensity'] = np.where(df_new['revenue'] == 0, 0, df_new['rd_expense'] / df_new['revenue'])
+                
+                if 'gross_margin' not in df_new.columns:
+                    df_new['gross_margin'] = np.where(df_new['revenue'] == 0, 0, (df_new['revenue'] - df_new['cost_of_sales']) / df_new['revenue'])
+                
+                df_new['gross_margin_stability'] = df_new.groupby('code')['gross_margin'].transform(lambda x: x.rolling(2, min_periods=1).std()).fillna(0)
+                df_new['nwc_ratio'] = np.where(df_new['revenue'] == 0, 0, df_new['nwc'] / df_new['revenue'])
+                
+                df_new['patent_weighted_raw'] = df_new.get('patent_weighted_raw', 0).fillna(0)
+
+                # E 维度 (为中小微企业增加宽容机制：如果没有评级，默认给 BB 级中等分)
+                if 'esg_rating' not in df_new.columns:
+                    df_new['esg_rating'] = 'BB'
+                else:
+                    df_new['esg_rating'] = df_new['esg_rating'].fillna('BB')
+                    
+                if 'esg_controversy_score' not in df_new.columns:
+                    df_new['esg_controversy_score'] = 100
+                else:
+                    df_new['esg_controversy_score'] = df_new['esg_controversy_score'].fillna(100)
+
+                rating_map = {'C':1, 'CC':2, 'CCC':3, 'B':4, 'BB':5, 'BBB':6, 'A':7, 'AA':8, 'AAA':9}
+                df_new['rating_num'] = df_new['esg_rating'].map(rating_map).fillna(5) # 没匹配上的默认为5(BB)
+                df_new['E_base'] = (df_new['rating_num'] - 1) / 8 * 100
+                df_new['P_env'] = df_new['esg_controversy_score'] / 100
+                df_new['E_score'] = df_new['E_base'] * df_new['P_env']
+
+                # 4. 清理任何潜在的无限大值，然后进行标准化
+                df_new.replace([np.inf, -np.inf], 0, inplace=True)
+
+                ha_cols = ['HA_fa_intensity','HA_fa_ratio','HA_tangible_intensity','HA_capex_intensity','HA_capex_load','HA_fa_newness','HA_fa_turnover']
+                i_cols = ['I_asset_labor_ratio','I_fa_update_rate','I_software_ratio','I_rev_per_emp_growth']
+                lo_cols = ['rd_intensity','gross_margin_stability','nwc_ratio','patent_weighted_raw']
+
+                for col in ha_cols + i_cols + lo_cols:
+                    df_new[f'{col}_norm'] = min_max_norm(df_new[col], col)
+
+                df_new['gross_margin_stability_norm'] = 1 - df_new['gross_margin_stability_norm']
+                df_new['nwc_ratio_norm'] = 1 - df_new['nwc_ratio_norm']
+
+                # 5. 合成最终得分 (加入 fillna 避免空值毁掉总分)
+                df_new['HA_score'] = df_new[[f'{c}_norm' for c in ha_cols]].mean(axis=1).fillna(0) * 100
+                df_new['I_score'] = df_new[[f'{c}_norm' for c in i_cols]].mean(axis=1).fillna(0) * 100
+                df_new['LO_score'] = df_new[[f'{c}_norm' for c in lo_cols]].mean(axis=1).fillna(0) * 100
+
+                df_new['HALO_score'] = (df_new['HA_score'] * 0.35 + df_new['LO_score'] * 0.35 + df_new['I_score'] * 0.20 + df_new['E_score'] * 0.10)
+
+            # 7. 炫酷输出结果
+            st.success("✅ 极速量化运算完成！以下为您上传企业的 HALO+ 各维度体检报告：")
+            result_df = df_new[['code', 'name', 'year', 'HA_score', 'LO_score', 'I_score', 'E_score', 'HALO_score']].copy()
+            st.dataframe(result_df.round(2).style.format(precision=2), use_container_width=True)
+
+            csv = result_df.round(2).to_csv(index=False).encode('utf-8-sig')
+            st.download_button("📥 导出全部计算结果 (CSV)", data=csv, file_name="HALO_智能计算结果.csv", mime="text/csv")
+            
+        except Exception as e:
+            st.error(f"❌ 数据处理过程中遇到问题：{e}")
+            st.info("请检查您上传的表格是否包含非法字符，或确保所有指标列均为数字格式。")
+    
