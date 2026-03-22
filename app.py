@@ -94,6 +94,9 @@ def load_and_calculate_ranks(df_main):
     
     return avg_scores, total_companies, industry_counts
 
+# 运行这个计算引擎
+df_ranks, total_companies, industry_counts = load_and_calculate_ranks(df_all)
+
 # ================== 核心交互界面：三合一分流标签页 ==================
 
 # 创建三个顶级标签页
