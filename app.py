@@ -6,9 +6,68 @@ import os
 import altair as alt
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="HALO+ 企业诊断系统", layout="wide")
+st.set_page_config(page_title="HALO+ 新质生产力评价系统", layout="wide")
 st.title("🏭 HALO+ 新质生产力评价系统")
 st.markdown("基于重资产、产业链护城河、智能化转型与绿色治理的实体经济企业综合诊断平台")
+
+# ================== 🌟 注入：科幻金融风蓝绿 UI 皮肤 ==================
+st.markdown("""
+<style>
+/* 1. 全局背景：深邃的科幻蓝绿渐变色 */
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(135deg, #051217 0%, #0a232c 50%, #003333 100%);
+}
+
+/* 2. 隐藏默认的顶部白条/黑条，使其与背景融合 */
+[data-testid="stHeader"] {
+    background-color: transparent;
+}
+
+/* 3. 标签页(Tabs)科幻化改造 */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 10px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: rgba(0, 51, 51, 0.3); /* 未选中时的暗底色 */
+    border-radius: 6px 6px 0px 0px;
+    padding: 10px 20px;
+    color: #80CBC4; /* 偏暗的青色 */
+    border: 1px solid transparent;
+}
+.stTabs [aria-selected="true"] {
+    background-color: rgba(0, 102, 102, 0.6) !important; /* 选中时的亮底色 */
+    color: #00E5FF !important; /* 亮青色字体 */
+    border-bottom: 2px solid #00E5FF !important; /* 底部霓虹线条 */
+    box-shadow: 0px -2px 10px rgba(0, 229, 255, 0.1); /* 微微的顶部发光 */
+}
+
+/* 4. 指标卡片(Metric)数字发光效果 */
+[data-testid="stMetricValue"] {
+    color: #00E5FF !important; /* 霓虹青蓝 */
+    text-shadow: 0px 0px 10px rgba(0, 229, 255, 0.4); /* 极客发光特效 */
+}
+
+/* 5. 分割线变暗青色 */
+hr {
+    border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+}
+
+/* 6. 按钮(Button)科技感调优 */
+.stButton > button {
+    background-color: rgba(0, 229, 255, 0.1);
+    color: #00E5FF;
+    border: 1px solid #00E5FF;
+    transition: all 0.3s ease;
+}
+.stButton > button:hover {
+    background-color: rgba(0, 229, 255, 0.3);
+    box-shadow: 0px 0px 15px rgba(0, 229, 255, 0.5);
+    border: 1px solid #00E5FF;
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
+# ====================================================================
 
 # 直接读取同一文件夹下的数据文件
 total_file = "HALO_total_score.csv"
