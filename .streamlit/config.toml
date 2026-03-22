@@ -1,0 +1,13 @@
+[theme]
+# 强制默认使用暗黑模式
+base="dark"
+
+# 将所有官方默认的“红色”全部替换为赛博朋克青蓝色！
+primaryColor="#00E5FF"
+
+# 设置页面的底色为深渊蓝黑
+backgroundColor="#051217"
+secondaryBackgroundColor="#0a232c"
+
+# 设置默认文字颜色为亮青白，保证科幻感
+textColor="#E0F7FA"
