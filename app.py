@@ -7,8 +7,8 @@ import altair as alt
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="HALO+ 企业诊断系统", layout="wide")
-st.title("🏆 HALO+ 企业诊断系统")
-st.markdown("输入企业名称（支持模糊查询），查看该企业的 HALO+ 总分及各维度得分")
+st.title("🏭 HALO+ 新质生产力评价系统")
+st.markdown("基于重资产、产业链护城河、智能化转型与绿色治理的实体经济企业综合诊断平台")
 
 # 直接读取同一文件夹下的数据文件
 total_file = "HALO_total_score.csv"
@@ -100,12 +100,12 @@ df_ranks, total_companies, industry_counts = load_and_calculate_ranks(df_all)
 # ================== 核心交互界面：三合一分流标签页 ==================
 
 # 创建三个顶级标签页
-tab1, tab2, tab3 = st.tabs(["🔍 单家企业诊断", "📂 批量客户筛查", "🏆 行业 Top 排行榜"])
+tab1, tab2, tab3 = st.tabs(["🔍 单家企业诊断", "📂 批量客户筛查", "🏆 排行榜智能查询"])
 
 # ----------------- 路径一：单家企业诊断（你原本的功能） -----------------
 with tab1:
-    st.markdown("#### 输入企业名称（支持模糊查询），查看该企业的 HALO+ 总分及各维度得分")
-    query = st.text_input("🔍 请输入企业名称（如“万科”、“晶合集成”）", "", key="single_search")
+    st.markdown("输入企业名称（支持模糊查询），一键获取 HALO+ 总分、各维度得分趋势图及近三年雷达图")
+    query = st.text_input("🔍 请输入企业名称（如“万科”、“宁德”）", "", key="single_search")
 
     if query:
         matched = df_all[df_all['name'].str.contains(query, case=False, na=False)]
@@ -248,8 +248,7 @@ with tab2:
 
 # ----------------- 路径三：全市场与行业百分位排名榜单 -----------------
 with tab3:
-    st.markdown("#### 🏆 HALO+ 综合得分百分位排名系统")
-    st.markdown("基于企业**近三年得分均值**进行计算。可通过调整百分位，灵活筛选全市场或特定行业内的头部优质企业。")
+    st.markdown("基于企业**近三年得分均值**，查看各行业内 HALO+ 得分领先企业，通过调整百分位，灵活洞察新质生产力龙头。")
     
     sub_tab_global, sub_tab_industry = st.tabs(["🌍 全市场 A 股排名", "🏢 所属申万行业内排名"])
 
