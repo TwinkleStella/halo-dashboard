@@ -231,66 +231,76 @@ with tab2:
 
 
 # ----------------- 路径三：HALO+ 高分企业优选池（多维严选模型） -----------------
+# ----------------- 路径三：全市场与行业百分位排名榜单 -----------------
 with tab3:
-    st.markdown("#### 🏆 HALO+ 高分企业智能优选池")
-    st.markdown("基于多维严选模型，为您自动过滤掉存在单项短板或近期业绩下滑的标的，筛选出真正的优质企业。")
+    st.markdown("#### 🏆 HALO+ 综合得分百分位排名系统")
+    st.markdown("基于企业**近三年得分均值**进行计算。可通过调整百分位，灵活筛选全市场或特定行业内的头部优质企业。")
     
-    # 将严选准则做成可交互的控制面板（默认值设为你截图里的标准）
-    with st.expander("⚙️ 展开查看或动态调整筛选阈值", expanded=True):
-        col_p1, col_p2, col_p3 = st.columns(3)
-        with col_p1:
-            st.markdown("**1. 综合优异 (HALO总分)**")
-            halo_avg_min = st.number_input("总分近三年均值 >", value=60.0, step=1.0)
-            halo_2023_min = st.number_input("总分2023年单年 >", value=60.0, step=1.0)
-        with col_p2:
-            st.markdown("**2. 无明显短板 (四个子项)**")
-            sub_avg_min = st.number_input("各子项近三年均值 >", value=50.0, step=1.0)
-            sub_2023_min = st.number_input("各子项2023年单年 >", value=50.0, step=1.0)
-        with col_p3:
-            st.markdown("**3. E项相对突出**")
-            e_avg_min = st.number_input("E项近三年均值 >", value=60.0, step=1.0)
-            e_2023_min = st.number_input("E项2023年单年 >", value=60.0, step=1.0)
+    # 将排名系统分为“全市场”和“细分行业”两个子标签页
+    sub_tab_global, sub_tab_industry = st.tabs(["🌍 全市场 A 股排名", "🏢 所属申万行业内排名"])
 
-    # --- 数据处理与量化筛选引擎 ---
-    # 1. 计算近三年均值
-    df_avg = df_all.groupby(['code', 'name'])[['HA', 'LO', 'I', 'E', 'HALO_score']].mean().reset_index()
-    
-    # 2. 提取 2023 年单年数据 (安全提取，防止 year 列格式差异)
-    df_2023 = df_all[df_all['year'].astype(str).str.contains('2023')][['code', 'HA', 'LO', 'I', 'E', 'HALO_score']]
-    # 为了合并时列名不冲突，给 2023 年的数据加上后缀
-    df_2023.columns = ['code', 'HA_23', 'LO_23', 'I_23', 'E_23', 'HALO_23']
-    
-    # 3. 将均值和 2023 年数据合并到一张大表上
-    df_pool = pd.merge(df_avg, df_2023, on='code', how='inner')
-    
-    # 4. 执行严选逻辑：根据上方面板设定的阈值进行布尔筛选
-    cond1 = (df_pool['HALO_score'] > halo_avg_min) & (df_pool['HALO_23'] > halo_2023_min)
-    cond2 = (df_pool['HA'] > sub_avg_min) & (df_pool['LO'] > sub_avg_min) & (df_pool['I'] > sub_avg_min) & (df_pool['E'] > sub_avg_min) & \
-            (df_pool['HA_23'] > sub_2023_min) & (df_pool['LO_23'] > sub_2023_min) & (df_pool['I_23'] > sub_2023_min) & (df_pool['E_23'] > sub_2023_min)
-    cond3 = (df_pool['E'] > e_avg_min) & (df_pool['E_23'] > e_2023_min)
-    
-    # 获取最终过关的企业名单，并按总分均值排序
-    final_pool = df_pool[cond1 & cond2 & cond3].sort_values(by='HALO_score', ascending=False)
-    
-    # --- 结果展示与下载 ---
-    if final_pool.empty:
-        st.warning("⚠️ 在当前严格的筛选标准下，全市场暂无符合条件的企业。您可以尝试在上方放宽条件。")
-    else:
-        st.success(f"🎉 严选完成！经过层层过滤，全市场共筛选出 **{len(final_pool)}** 家完美的【HALO+ 高分优质企业】。")
+    # ================= 子标签 1：全市场按百分位排名 =================
+    with sub_tab_global:
+        st.info("💡 筛选全市场综合得分排名前 X% 的企业")
+        # 滑动条：选择前多少百分位
+        top_percent_global = st.slider("🌍 选择全市场前百分之几（Top X%）：", min_value=1, max_value=100, value=10, step=1, key="slider_global")
         
-        # 整理展示用的表格，提取核心关键指标并汉化列名
-        display_df = final_pool[['code', 'name', 'HALO_score', 'HALO_23', 'E', 'E_23', 'HA', 'LO', 'I']].copy()
-        display_df.columns = ['企业代码', '企业名称', 'HALO总分(均值)', 'HALO总分(23年)', 'E项(均值)', 'E项(23年)', 'HA(均值)', 'LO(均值)', 'I(均值)']
-        display_df = display_df.round(2)
+        # 计算百分位对应的排名阈值（比如一共 5000 家，选前 10%，就是排名 <= 500 的企业）
+        threshold_rank_global = max(1, int(total_companies * (top_percent_global / 100.0)))
         
-        # 渲染出漂亮的高亮表格
-        st.dataframe(display_df, use_container_width=True)
+        # 筛选并排序
+        df_global_filtered = df_ranks[df_ranks['global_rank'] <= threshold_rank_global].sort_values(by='global_rank')
         
-        # 批量下载按钮
-        csv_pool = display_df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(
-            label=f"📥 一键下载优选池企业名单 ({len(final_pool)}家)",
-            data=csv_pool,
-            file_name="HALO系统_严选高分企业池.csv",
-            mime="text/csv"
-        )
+        if df_global_filtered.empty:
+            st.warning("无满足条件的企业。")
+        else:
+            # 按要求重命名和排列列
+            display_global = df_global_filtered[['global_rank', 'code', 'name', 'industry', 'HA', 'LO', 'I', 'E', 'HALO_score']].copy()
+            display_global.columns = ['名次', '股票代码', '企业名称', '所属申万行业', 'HA得分', 'LO得分', 'I得分', 'E得分', 'HALO总分']
+            
+            st.success(f"✅ 全市场共 {total_companies} 家企业，已为您筛选出排名前 {top_percent_global}% 的企业（共 {len(display_global)} 家）。")
+            st.dataframe(display_global.round(2).style.format(precision=2), use_container_width=True)
+            
+            # 下载按钮
+            csv_global = display_global.round(2).to_csv(index=False).encode('utf-8-sig')
+            st.download_button(label=f"📥 导出全市场 Top {top_percent_global}% 榜单 (CSV)", data=csv_global, file_name=f"HALO全市场_Top{top_percent_global}%.csv", mime="text/csv", key="btn_global")
+
+    # ================= 子标签 2：按所属行业百分位排名 =================
+    with sub_tab_industry:
+        st.info("💡 选择特定行业，并筛选该行业内得分排名前 X% 的企业")
+        
+        col_ind1, col_ind2 = st.columns(2)
+        with col_ind1:
+            # 提取所有不为空的行业列表（去除'未分类'放到最后，或者直接排个序）
+            industry_list = sorted([ind for ind in df_ranks['industry'].unique() if ind != '未分类'])
+            if '未分类' in df_ranks['industry'].unique():
+                industry_list.append('未分类')
+            
+            selected_industry = st.selectbox("🏢 请选择所属申万行业：", industry_list)
+            
+        with col_ind2:
+            top_percent_ind = st.slider(f"🎯 选择该行业前百分之几（Top X%）：", min_value=1, max_value=100, value=20, step=1, key="slider_ind")
+            
+        # 过滤出选中行业的企业
+        df_ind_only = df_ranks[df_ranks['industry'] == selected_industry]
+        ind_total_companies = len(df_ind_only)
+        
+        if ind_total_companies == 0:
+            st.warning("该行业暂无数据。")
+        else:
+            # 计算该行业内的百分位排名阈值
+            threshold_rank_ind = max(1, int(ind_total_companies * (top_percent_ind / 100.0)))
+            
+            # 筛选并排序
+            df_ind_filtered = df_ind_only[df_ind_only['industry_rank'] <= threshold_rank_ind].sort_values(by='industry_rank')
+            
+            # 按要求重命名和排列列
+            display_ind = df_ind_filtered[['industry_rank', 'code', 'name', 'industry', 'HA', 'LO', 'I', 'E', 'HALO_score']].copy()
+            display_ind.columns = ['名次', '股票代码', '企业名称', '所属申万行业', 'HA得分', 'LO得分', 'I得分', 'E得分', 'HALO总分']
+            
+            st.success(f"✅ {selected_industry} 行业共 {ind_total_companies} 家企业，已为您筛选出排名前 {top_percent_ind}% 的企业（共 {len(display_ind)} 家）。")
+            st.dataframe(display_ind.round(2).style.format(precision=2), use_container_width=True)
+            
+            # 下载按钮
+            csv_ind = display_ind.round(2).to_csv(index=False).encode('utf-8-sig')
+            st.download_button(label=f"📥 导出 {selected_industry} 行业 Top {top_percent_ind}% 榜单 (CSV)", data=csv_ind, file_name=f"HALO_{selected_industry}行业_Top{top_percent_ind}%.csv", mime="text/csv", key="btn_ind")
