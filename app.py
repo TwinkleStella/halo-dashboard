@@ -45,41 +45,47 @@ if df_all.empty:
 # ================== 🌟 新增：精准匹配申万行业并计算排名 ==================
 @st.cache_data
 def load_and_calculate_ranks(df_main):
-    # 1. 计算所有企业历年 HALO+ 总分的平均值，作为排名的基准
     avg_scores = df_main.groupby(['code', 'name'])[['HA', 'LO', 'I', 'E', 'HALO_score']].mean().reset_index()
     
-    # 2. 读取你专门清洗好的行业分类文件
+    # 【新增】申万一级行业映射字典（2021版标准库）
+    shenwan_dict = {
+        'S11': '农林牧渔', 'S21': '煤炭', 'S22': '基础化工', 'S23': '钢铁', 'S24': '有色金属',
+        'S27': '电子', 'S28': '汽车', 'S33': '家用电器', 'S34': '食品饮料', 'S35': '纺织服饰',
+        'S36': '轻工制造', 'S37': '医药生物', 'S41': '公用事业', 'S42': '交通运输', 'S43': '房地产',
+        'S45': '商贸零售', 'S46': '社会服务', 'S48': '银行', 'S49': '非银金融', 'S51': '综合',
+        'S61': '建筑材料', 'S62': '建筑装饰', 'S63': '电力设备', 'S64': '机械设备', 'S65': '国防军工',
+        'S71': '计算机', 'S72': '传媒', 'S73': '通信', 'S76': '环保', 'S77': '美容护理'
+    }
+    
     industry_file = "申万行业分类_cleaned.csv"
     if os.path.exists(industry_file):
-        # 强制把 code 读为字符串
         df_industry = pd.read_csv(industry_file, dtype={'code': str})
-        
-        # 【关键修复】把类似 "1" 的代码补齐为 "000001"，防止和主表匹配不上！
         df_industry['code'] = df_industry['code'].str.zfill(6)
         
-        # 因为有连续几年的数据，同一个企业我们只取一行行业标签即可
-        df_ind_unique = df_industry[['code', 'industry']].drop_duplicates(subset=['code'])
+        # 【新增】翻译中文行业，并拼接成 "S43 - 房地产" 的格式
+        df_industry['ind_cn'] = df_industry['industry'].map(shenwan_dict).fillna('未知细分')
+        df_industry['industry_display'] = df_industry['industry'] + ' - ' + df_industry['ind_cn']
         
-        # 将行业信息完美合并进平均分表里
+        df_ind_unique = df_industry[['code', 'industry_display']].drop_duplicates(subset=['code'])
         avg_scores = pd.merge(avg_scores, df_ind_unique, on='code', how='left')
+        
+        # 统一把合并后的漂亮名字叫作 'industry'
+        avg_scores.rename(columns={'industry_display': 'industry'}, inplace=True)
         avg_scores['industry'] = avg_scores['industry'].fillna('未分类')
     else:
         avg_scores['industry'] = '未分类'
 
-    # 3. 计算全市场总排名（加入 fillna(0) 防止空值报错）
-    avg_scores['global_rank'] = avg_scores['HALO_score'].rank(method='min', ascending=False).fillna(0).astype(int)
+    # 强制将分数转为数字格式
+    avg_scores['HALO_score'] = pd.to_numeric(avg_scores['HALO_score'], errors='coerce')
     
-    # 4. 计算各行业内部的排名（加入 fillna(0) 防止空值报错）
-    avg_scores['industry_rank'] = avg_scores.groupby('industry')['HALO_score'].rank(method='min', ascending=False).fillna(0).astype(int)
+    # 【修复 0 名次 Bug】遇到空值填入 999999，让它们沉到底部！
+    avg_scores['global_rank'] = avg_scores['HALO_score'].rank(method='min', ascending=False).fillna(999999).astype(int)
+    avg_scores['industry_rank'] = avg_scores.groupby('industry')['HALO_score'].rank(method='min', ascending=False).fillna(999999).astype(int)
     
-    # 5. 统计各类别的总企业数
     total_companies = len(avg_scores)
     industry_counts = avg_scores['industry'].value_counts().to_dict()
     
     return avg_scores, total_companies, industry_counts
-
-# 运行计算引擎
-df_ranks, total_companies, industry_counts = load_and_calculate_ranks(df_all)
 
 # ================== 核心交互界面：三合一分流标签页 ==================
 
@@ -230,40 +236,38 @@ with tab2:
                 st.download_button("📥 导出高分匹配结果 (CSV)", data=csv_batch, file_name=f"高分客户名单筛查结果_{score_threshold}分以上.csv", mime="text/csv")
 
 
-# ----------------- 路径三：HALO+ 高分企业优选池（多维严选模型） -----------------
 # ----------------- 路径三：全市场与行业百分位排名榜单 -----------------
 with tab3:
     st.markdown("#### 🏆 HALO+ 综合得分百分位排名系统")
     st.markdown("基于企业**近三年得分均值**进行计算。可通过调整百分位，灵活筛选全市场或特定行业内的头部优质企业。")
     
-    # 将排名系统分为“全市场”和“细分行业”两个子标签页
     sub_tab_global, sub_tab_industry = st.tabs(["🌍 全市场 A 股排名", "🏢 所属申万行业内排名"])
 
     # ================= 子标签 1：全市场按百分位排名 =================
     with sub_tab_global:
         st.info("💡 筛选全市场综合得分排名前 X% 的企业")
-        # 滑动条：选择前多少百分位
         top_percent_global = st.slider("🌍 选择全市场前百分之几（Top X%）：", min_value=1, max_value=100, value=10, step=1, key="slider_global")
         
-        # 计算百分位对应的排名阈值（比如一共 5000 家，选前 10%，就是排名 <= 500 的企业）
-        threshold_rank_global = max(1, int(total_companies * (top_percent_global / 100.0)))
+        # 过滤出 999999 那些没有分数的无效数据，并且计算排名阈值
+        valid_ranks = df_ranks[df_ranks['global_rank'] < 999999]
+        threshold_rank_global = max(1, int(len(valid_ranks) * (top_percent_global / 100.0)))
         
-        # 筛选并排序
-        df_global_filtered = df_ranks[df_ranks['global_rank'] <= threshold_rank_global].sort_values(by='global_rank')
+        df_global_filtered = valid_ranks[valid_ranks['global_rank'] <= threshold_rank_global].sort_values(by='global_rank')
         
         if df_global_filtered.empty:
             st.warning("无满足条件的企业。")
         else:
-            # 按要求重命名和排列列
             display_global = df_global_filtered[['global_rank', 'code', 'name', 'industry', 'HA', 'LO', 'I', 'E', 'HALO_score']].copy()
             display_global.columns = ['名次', '股票代码', '企业名称', '所属申万行业', 'HA得分', 'LO得分', 'I得分', 'E得分', 'HALO总分']
             
-            st.success(f"✅ 全市场共 {total_companies} 家企业，已为您筛选出排名前 {top_percent_global}% 的企业（共 {len(display_global)} 家）。")
+            # 【关键魔法】将“名次”设置为表格最左侧的索引，消灭丑陋的四位数行号！
+            display_global.set_index('名次', inplace=True)
+            
+            st.success(f"✅ 全市场有效数据共 {len(valid_ranks)} 家，已为您筛选出排名前 {top_percent_global}% 的企业（共 {len(display_global)} 家）。")
             st.dataframe(display_global.round(2).style.format(precision=2), use_container_width=True)
             
-            # 下载按钮
-            csv_global = display_global.round(2).to_csv(index=False).encode('utf-8-sig')
-            st.download_button(label=f"📥 导出全市场 Top {top_percent_global}% 榜单 (CSV)", data=csv_global, file_name=f"HALO全市场_Top{top_percent_global}%.csv", mime="text/csv", key="btn_global")
+            csv_global = display_global.round(2).to_csv(index=True).encode('utf-8-sig') # 包含 index(名次) 下载
+            st.download_button(label=f"📥 导出全市场 Top {top_percent_global}% 榜单", data=csv_global, file_name=f"HALO全市场_Top{top_percent_global}%.csv", mime="text/csv", key="btn_global")
 
     # ================= 子标签 2：按所属行业百分位排名 =================
     with sub_tab_industry:
@@ -271,36 +275,30 @@ with tab3:
         
         col_ind1, col_ind2 = st.columns(2)
         with col_ind1:
-            # 提取所有不为空的行业列表（去除'未分类'放到最后，或者直接排个序）
             industry_list = sorted([ind for ind in df_ranks['industry'].unique() if ind != '未分类'])
-            if '未分类' in df_ranks['industry'].unique():
-                industry_list.append('未分类')
-            
             selected_industry = st.selectbox("🏢 请选择所属申万行业：", industry_list)
             
         with col_ind2:
             top_percent_ind = st.slider(f"🎯 选择该行业前百分之几（Top X%）：", min_value=1, max_value=100, value=20, step=1, key="slider_ind")
             
-        # 过滤出选中行业的企业
-        df_ind_only = df_ranks[df_ranks['industry'] == selected_industry]
+        # 过滤出选中行业的有效企业
+        df_ind_only = df_ranks[(df_ranks['industry'] == selected_industry) & (df_ranks['industry_rank'] < 999999)]
         ind_total_companies = len(df_ind_only)
         
         if ind_total_companies == 0:
-            st.warning("该行业暂无数据。")
+            st.warning("该行业暂无有效数据。")
         else:
-            # 计算该行业内的百分位排名阈值
             threshold_rank_ind = max(1, int(ind_total_companies * (top_percent_ind / 100.0)))
-            
-            # 筛选并排序
             df_ind_filtered = df_ind_only[df_ind_only['industry_rank'] <= threshold_rank_ind].sort_values(by='industry_rank')
             
-            # 按要求重命名和排列列
             display_ind = df_ind_filtered[['industry_rank', 'code', 'name', 'industry', 'HA', 'LO', 'I', 'E', 'HALO_score']].copy()
             display_ind.columns = ['名次', '股票代码', '企业名称', '所属申万行业', 'HA得分', 'LO得分', 'I得分', 'E得分', 'HALO总分']
             
-            st.success(f"✅ {selected_industry} 行业共 {ind_total_companies} 家企业，已为您筛选出排名前 {top_percent_ind}% 的企业（共 {len(display_ind)} 家）。")
+            # 【关键魔法】消灭四位数行号
+            display_ind.set_index('名次', inplace=True)
+            
+            st.success(f"✅ **{selected_industry}** 共有 {ind_total_companies} 家企业，已为您筛选出排名前 {top_percent_ind}% 的企业（共 {len(display_ind)} 家）。")
             st.dataframe(display_ind.round(2).style.format(precision=2), use_container_width=True)
             
-            # 下载按钮
-            csv_ind = display_ind.round(2).to_csv(index=False).encode('utf-8-sig')
-            st.download_button(label=f"📥 导出 {selected_industry} 行业 Top {top_percent_ind}% 榜单 (CSV)", data=csv_ind, file_name=f"HALO_{selected_industry}行业_Top{top_percent_ind}%.csv", mime="text/csv", key="btn_ind")
+            csv_ind = display_ind.round(2).to_csv(index=True).encode('utf-8-sig')
+            st.download_button(label=f"📥 导出 {selected_industry.split(' - ')[0]}行业 Top {top_percent_ind}% 榜单", data=csv_ind, file_name=f"HALO行业排名_{selected_industry}.csv", mime="text/csv", key="btn_ind")
