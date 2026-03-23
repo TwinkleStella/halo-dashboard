@@ -48,10 +48,9 @@ pip install -r requirements.txt
 请确保项目根目录下包含以下基础数据文件（由于数据隐私限制，部分核心底稿未开源）：
 
 HALO_total_score.csv：系统主数据库（包含企业代码、名称、年份及各项得分）。
-
 申万行业分类_cleaned.csv：行业映射字典。
 
-4. 启动 Streamlit 交互系统
+**4. 启动 Streamlit 交互系统**
 
 ```bash
 streamlit run app.py
