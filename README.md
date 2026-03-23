@@ -27,29 +27,35 @@
   * 提供标准数据上传模板。用户上传私域财务及经营数据后，系统调用内置量化模型自动进行极值标准化（Min-Max Normalization）与加权运算。
   * **隐私保护**：计算过程仅在本地浏览器进行，确保核心商业数据不触网、不泄露。
 
+
 ## ⚙️ 快速本地部署 (Local Installation)
 
 如果您希望在本地环境中运行此系统，请按照以下步骤操作：
 
-1. **克隆代码仓库**
-```bash
-git clone [https://github.com/TwinkleStella/halo-dashboard.git](https://github.com/TwinkleStella/halo-dashboard.git)
-cd halo-dashboard
-安装核心依赖库
+**1. 克隆代码仓库**
 
-Bash
+```bash
+git clone https://github.com/TwinkleStella/halo-dashboard.git
+cd halo-dashboard
+```
+**2. 安装核心依赖库**
+
+```bash
 pip install -r requirements.txt
-数据文件准备
+```
+**3. 数据文件准备**
+
 请确保项目根目录下包含以下基础数据文件（由于数据隐私限制，部分核心底稿未开源）：
 
 HALO_total_score.csv：系统主数据库（包含企业代码、名称、年份及各项得分）。
 
 申万行业分类_cleaned.csv：行业映射字典。
 
-启动 Streamlit 交互系统
+4. 启动 Streamlit 交互系统
 
-Bash
+```bash
 streamlit run app.py
+```
 启动后，浏览器将自动打开 http://localhost:8501 访问系统。
 
 📁 项目结构 (Project Structure)
@@ -61,6 +67,7 @@ halo-dashboard/
 ├── requirements.txt          # Python 第三方依赖环境清单
 ├── HALO_total_score.csv      # 底层量化计算结果主库 (运行依赖)
 └── 申万行业分类_cleaned.csv  # 行业名称及代码映射字典 (运行依赖)
+
 📜 声明与开源协议 (License)
 本项目为学术研究与探索性质的量化评价系统展示。
 本项目采用 MIT License 协议开源。
