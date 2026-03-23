@@ -10,7 +10,6 @@ st.set_page_config(page_title="HALO+ 新质生产力评价系统", layout="wide"
 st.title("🏭 HALO+ 新质生产力评价系统")
 st.markdown("基于重资产、产业链护城河、智能化转型与绿色治理的实体经济企业综合诊断平台")
 
-# ================== 🌟 注入：科幻金融风蓝绿 UI 皮肤 ==================
 # ================== 🌟 注入：科幻金融风蓝绿 UI 皮肤 (含背景插画) ==================
 st.markdown("""
 <style>
@@ -109,7 +108,7 @@ df_all = load_data()
 if df_all.empty:
     st.stop()
     
-# ================== 🌟 新增：精准匹配申万行业并计算排名（终极防崩溃版） ==================
+# ================== 🌟 新增：精准匹配申万行业并计算排名 ==================
 @st.cache_data
 def load_and_calculate_ranks(df_main):
     avg_scores = df_main.groupby(['code', 'name'])[['HA', 'LO', 'I', 'E', 'HALO_score']].mean().reset_index()
@@ -146,13 +145,12 @@ def load_and_calculate_ranks(df_main):
         avg_scores.rename(columns={'industry_display': 'industry'}, inplace=True)
         avg_scores['industry'] = avg_scores['industry'].fillna('未分类')
     except Exception as e:
-        # 如果文件没找到，只在网页上发个黄色警告，绝不崩溃
         st.warning("⚠️ 行业分类文件(申万行业分类_cleaned.csv)读取失败，请检查是否已上传至 GitHub。所有企业将暂记为'未分类'。")
 
     # 强制将分数转为数字格式
     avg_scores['HALO_score'] = pd.to_numeric(avg_scores['HALO_score'], errors='coerce')
     
-    # 计算排名（包含 999999 垫底补丁）
+    # 计算排名
     avg_scores['global_rank'] = avg_scores['HALO_score'].rank(method='min', ascending=False).fillna(999999).astype(int)
     avg_scores['industry_rank'] = avg_scores.groupby('industry')['HALO_score'].rank(method='min', ascending=False).fillna(999999).astype(int)
     
@@ -169,7 +167,7 @@ df_ranks, total_companies, industry_counts = load_and_calculate_ranks(df_all)
 # 创建三个顶级标签页
 tab1, tab2, tab3, tab4 = st.tabs(["🔍 单家企业诊断", "📂 批量客户筛查", "🏆 排行榜智能查询", "💻 在线计算 HALO+得分"])
 
-# ----------------- 路径一：单家企业诊断（你原本的功能） -----------------
+# ----------------- 路径一：单家企业诊断 -----------------
 with tab1:
     st.markdown("输入企业名称（支持模糊查询），一键获取 HALO+ 总分、各维度得分趋势图及近三年雷达图")
     query = st.text_input("🔍 请输入企业名称（如“万科”、“宁德”）", "", key="single_search")
@@ -187,7 +185,7 @@ with tab1:
 
             df_company = matched[matched['code'] == selected_code].sort_values('year')
             
-            # --- 🌟 新增：展示企业排名仪表盘 ---
+            # --- 展示企业排名仪表盘 ---
             company_rank_info = df_ranks[df_ranks['code'] == selected_code]
             if not company_rank_info.empty:
                 r_info = company_rank_info.iloc[0]
@@ -257,7 +255,7 @@ with tab1:
                 st.plotly_chart(fig, use_container_width=True)
 
 
-# ----------------- 路径二：批量客户名单筛查（新增功能） -----------------
+# ----------------- 路径二：批量客户名单筛查 -----------------
 with tab2:
     st.markdown("上传企业名单，批量导出得分明细，快速筛选潜在合作伙伴或投资标的")
     
@@ -336,7 +334,7 @@ with tab3:
             display_global = df_global_filtered[['global_rank', 'code', 'name', 'industry', 'HA', 'LO', 'I', 'E', 'HALO_score']].copy()
             display_global.columns = ['名次', '股票代码', '企业名称', '所属申万行业', 'HA得分', 'LO得分', 'I得分', 'E得分', 'HALO总分']
             
-            # 【关键魔法】将“名次”设置为表格最左侧的索引，消灭丑陋的四位数行号！
+            # 将“名次”设置为表格最左侧的索引，消灭四位数行号！
             display_global.set_index('名次', inplace=True)
             
             st.success(f"✅ 全市场有效数据共 {len(valid_ranks)} 家，已为您筛选出排名前 {top_percent_global}% 的企业（共 {len(display_global)} 家）。")
@@ -370,7 +368,7 @@ with tab3:
             display_ind = df_ind_filtered[['industry_rank', 'code', 'name', 'industry', 'HA', 'LO', 'I', 'E', 'HALO_score']].copy()
             display_ind.columns = ['名次', '股票代码', '企业名称', '所属申万行业', 'HA得分', 'LO得分', 'I得分', 'E得分', 'HALO总分']
             
-            # 【关键魔法】消灭四位数行号
+            # 消灭四位数行号
             display_ind.set_index('名次', inplace=True)
             
             st.success(f"✅ **{selected_industry}** 共有 {ind_total_companies} 家企业，已为您筛选出排名前 {top_percent_ind}% 的企业（共 {len(display_ind)} 家）。")
@@ -514,7 +512,7 @@ with tab4:
 
                 df_new['HALO_score'] = (df_new['HA_score'] * 0.35 + df_new['LO_score'] * 0.35 + df_new['I_score'] * 0.20 + df_new['E_score'] * 0.10)
 
-            # 7. 炫酷输出结果
+            # 7. 输出结果
             st.success("✅ 极速量化运算完成！以下为您上传企业的 HALO+ 各维度体检报告：")
             result_df = df_new[['code', 'name', 'year', 'HA_score', 'LO_score', 'I_score', 'E_score', 'HALO_score']].copy()
             st.dataframe(result_df.round(2).style.format(precision=2), use_container_width=True)
