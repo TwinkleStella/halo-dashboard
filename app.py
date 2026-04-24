@@ -10,12 +10,16 @@ st.set_page_config(page_title="HALO+ 新质生产力评价系统", layout="wide"
 st.title("🏭 HALO+ 新质生产力评价系统")
 st.markdown("基于重资产、产业链护城河、智能化转型与绿色治理的实体经济企业综合诊断平台")
 
-# ================== 🌟 注入：极简科技风白底 UI 皮肤 ==================
+# ================== 🌟 注入：浅色毛玻璃科技风 UI 皮肤 ==================
 st.markdown("""
 <style>
-/* 1. 全局背景：极简浅灰蓝渐变，干净透亮 */
+/* 1. 全局背景：科技感底图 + 85%白色半透明遮罩，打造若隐若现的水印感 */
 [data-testid="stAppViewContainer"] {
-    background: linear-gradient(135deg, #F0F4F8 0%, #FFFFFF 100%);
+    background: linear-gradient(rgba(255, 255, 255, 0.88), rgba(240, 245, 250, 0.92)), 
+                url("https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000&auto=format&fit=crop");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
 }
 
 /* 2. 透明化头部 */
@@ -23,55 +27,69 @@ st.markdown("""
     background-color: transparent;
 }
 
-/* 3. 标签页(Tabs) 现代化亮色改造 */
+/* 3. 标签页(Tabs) 浅色磨砂玻璃改造 */
 .stTabs [data-baseweb="tab-list"] {
     gap: 10px;
 }
 .stTabs [data-baseweb="tab"] {
-    background-color: #E2E8F0;
-    border-radius: 6px 6px 0px 0px;
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 8px 8px 0px 0px;
     padding: 10px 20px;
-    color: #64748B;
-    border: 1px solid transparent;
+    color: #475569;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-bottom: none;
 }
 .stTabs [aria-selected="true"] {
-    background-color: #FFFFFF !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
     color: #0066CC !important;
-    /* 顶部加一条科技蓝强调线，更具专业感 */
     border-top: 3px solid #0066CC !important; 
-    border-bottom: none !important;
     box-shadow: 0px -4px 15px rgba(0, 102, 204, 0.08);
     font-weight: bold;
 }
 
-/* 4. 指标卡片(Metric) 沉稳科技蓝 */
+/* 4. 指标卡片(Metric) 悬浮磨砂态 */
+[data-testid="stMetric"] {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+}
 [data-testid="stMetricValue"] {
     color: #005BB5 !important;
     font-weight: 800 !important;
 }
 
-/* 5. 数据表格(Dataframe) 亮白悬浮卡片态 */
+/* 5. 数据表格(Dataframe) 浅色毛玻璃背景 */
 [data-testid="stDataFrame"] {
-    background-color: #FFFFFF;
-    border-radius: 10px;
-    border: 1px solid #E2E8F0;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* 增加非常柔和的阴影 */
+    background-color: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
     padding: 5px;
 }
 
-/* 6. 交互按钮 极简科技蓝 */
+/* 6. 交互按钮 磨砂科技蓝 */
 .stButton > button {
-    background-color: #FFFFFF;
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     color: #0066CC;
-    border: 1px solid #0066CC;
-    border-radius: 6px;
+    border: 1px solid rgba(0, 102, 204, 0.4);
+    border-radius: 8px;
     transition: all 0.3s ease;
     font-weight: 600;
 }
 .stButton > button:hover {
     background-color: #0066CC;
     color: #FFFFFF;
-    box-shadow: 0px 4px 15px rgba(0, 102, 204, 0.3);
+    box-shadow: 0px 6px 20px rgba(0, 102, 204, 0.3);
     border: 1px solid #0066CC;
 }
 </style>
