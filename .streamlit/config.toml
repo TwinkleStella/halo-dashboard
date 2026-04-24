@@ -1,13 +1,14 @@
 [theme]
-# 强制默认使用暗黑模式
-base="dark"
+# 强制设定基础主题为浅色（白底黑字）
+base="light"
 
-# 将所有官方默认的“红色”全部替换为赛博朋克青蓝色！
-primaryColor="#00E5FF"
+# 覆盖系统默认的强调色，使用咱们的“金融科技蓝”
+primaryColor="#0066CC"
 
-# 设置页面的底色为深渊蓝黑
-backgroundColor="#051217"
-secondaryBackgroundColor="#0a232c"
+# 设定背景色与侧边栏背景色，配合你代码里的 CSS
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#F0F4F8"
 
-# 设置默认文字颜色为亮青白，保证科幻感
-textColor="#E0F7FA"
+# 强制全局文字颜色为深灰/黑色，绝不隐形
+textColor="#212121"
+font="sans serif"
