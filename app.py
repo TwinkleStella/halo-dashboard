@@ -10,67 +10,69 @@ st.set_page_config(page_title="HALO+ 新质生产力评价系统", layout="wide"
 st.title("🏭 HALO+ 新质生产力评价系统")
 st.markdown("基于重资产、产业链护城河、智能化转型与绿色治理的实体经济企业综合诊断平台")
 
-# ================== 🌟 注入：科幻金融风蓝绿 UI 皮肤 (含背景插画) ==================
+# ================== 🌟 注入：极简科技风白底 UI 皮肤 ==================
 st.markdown("""
 <style>
-/* 1. 全局背景：科幻数据网格插画 + 暗青色玻璃遮罩 */
+/* 1. 全局背景：极简浅灰蓝渐变，干净透亮 */
 [data-testid="stAppViewContainer"] {
-    background: linear-gradient(rgba(5, 18, 23, 0.88), rgba(0, 35, 45, 0.88)), 
-                url("https://images.unsplash.com/photo-1639322537228-f710d846310a?q=80&w=2000&auto=format&fit=crop");
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+    background: linear-gradient(135deg, #F0F4F8 0%, #FFFFFF 100%);
 }
 
-/* 2. 透明化头部和侧边栏，让背景透出来 */
+/* 2. 透明化头部 */
 [data-testid="stHeader"] {
     background-color: transparent;
 }
 
-/* 3. 标签页(Tabs)科幻化改造 */
+/* 3. 标签页(Tabs) 现代化亮色改造 */
 .stTabs [data-baseweb="tab-list"] {
     gap: 10px;
 }
 .stTabs [data-baseweb="tab"] {
-    background-color: rgba(0, 51, 51, 0.4);
+    background-color: #E2E8F0;
     border-radius: 6px 6px 0px 0px;
     padding: 10px 20px;
-    color: #80CBC4;
+    color: #64748B;
     border: 1px solid transparent;
 }
 .stTabs [aria-selected="true"] {
-    background-color: rgba(0, 229, 255, 0.1) !important;
-    color: #00E5FF !important;
-    border-bottom: 2px solid #00E5FF !important;
-    box-shadow: 0px -2px 15px rgba(0, 229, 255, 0.15);
+    background-color: #FFFFFF !important;
+    color: #0066CC !important;
+    /* 顶部加一条科技蓝强调线，更具专业感 */
+    border-top: 3px solid #0066CC !important; 
+    border-bottom: none !important;
+    box-shadow: 0px -4px 15px rgba(0, 102, 204, 0.08);
+    font-weight: bold;
 }
 
-/* 4. 指标卡片(Metric)发光特效 */
+/* 4. 指标卡片(Metric) 沉稳科技蓝 */
 [data-testid="stMetricValue"] {
-    color: #00E5FF !important;
-    text-shadow: 0px 0px 15px rgba(0, 229, 255, 0.5);
+    color: #005BB5 !important;
+    font-weight: 800 !important;
 }
 
-/* 5. 数据表格(Dataframe)玻璃态背景 */
+/* 5. 数据表格(Dataframe) 亮白悬浮卡片态 */
 [data-testid="stDataFrame"] {
-    background-color: rgba(0, 20, 30, 0.6);
+    background-color: #FFFFFF;
     border-radius: 10px;
-    border: 1px solid rgba(0, 229, 255, 0.2);
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* 增加非常柔和的阴影 */
     padding: 5px;
 }
 
-/* 6. 交互按钮全息光晕 */
+/* 6. 交互按钮 极简科技蓝 */
 .stButton > button {
-    background-color: rgba(0, 229, 255, 0.05);
-    color: #00E5FF;
-    border: 1px solid rgba(0, 229, 255, 0.5);
+    background-color: #FFFFFF;
+    color: #0066CC;
+    border: 1px solid #0066CC;
+    border-radius: 6px;
     transition: all 0.3s ease;
+    font-weight: 600;
 }
 .stButton > button:hover {
-    background-color: rgba(0, 229, 255, 0.2);
-    box-shadow: 0px 0px 20px rgba(0, 229, 255, 0.6);
-    border: 1px solid #00E5FF;
-    color: white;
+    background-color: #0066CC;
+    color: #FFFFFF;
+    box-shadow: 0px 4px 15px rgba(0, 102, 204, 0.3);
+    border: 1px solid #0066CC;
 }
 </style>
 """, unsafe_allow_html=True)
